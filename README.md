@@ -32,7 +32,7 @@ npm install
 
 ```
 npm install element-ui --save
-npm install axios
+npm install --save axios
 ```
 
 如果还不行可以仔细看他的反馈输出，输入他提供的命令，大概就能行。
