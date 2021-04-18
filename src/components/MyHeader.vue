@@ -23,9 +23,12 @@ export default {
 </script>
 <style scoped>
 #my-header {
-  width: 100%;
-  height: 100px;
-  line-height: 100px;
+  position: absolute;
+  top: 0;
+  left: 20%;
+  width: 80%;
+  height: 80px;
+  line-height: 80px;
 }
 .info {
   font-size: 20px;
