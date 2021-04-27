@@ -1,14 +1,31 @@
 <template>
   <div id="toolsbar">
-    <div v-if="step==0"
-         class="button">
-      <el-button class="operation">上传</el-button>
-    </div>
+    <el-upload v-if="step==0"
+               class="button"
+               ref="upload"
+               action="#"
+               accept="image/png,image/gif,image/jpg,image/jpeg"
+               :auto-upload="false"
+               :show-file-list="false"
+               :file-list="fileList"
+               :on-change="addImage">
+      <el-button class="upload">上传</el-button>
+
+    </el-upload>
     <div v-if="step<=1"
          class="button">
-      <el-radio-group v-model="mode">
-        <el-radio-button label="画笔"></el-radio-button>
+      <el-radio-group v-if="step==0"
+                      v-model="mode"
+                      @change="changeMode">
+        <el-radio-button label="素描"></el-radio-button>
         <el-radio-button label="橡皮"></el-radio-button>
+      </el-radio-group>
+      <el-radio-group v-if="step==1"
+                      v-model="mode"
+                      @change="changeMode">
+        <el-radio-button label="蒙版"></el-radio-button>
+        <el-radio-button label="素描"></el-radio-button>
+        <el-radio-button label="画笔"></el-radio-button>
       </el-radio-group>
     </div>
     <div v-if="step<=1"
@@ -17,14 +34,15 @@
                      v-model="size"
                      @change="changeSize"
                      :min="1"
-                     :max="10"
+                     :max="100"
                      label="画笔粗细"
                      size="small"></el-input-number>
     <div v-if="step==0"
          class="button">
       <div class="info blue">性别</div>
       <el-radio-group v-if="step==0"
-                      v-model="gender">
+                      v-model="gender"
+                      @change="changeGender">
         <el-radio-button label="男性"></el-radio-button>
         <el-radio-button label="女性"></el-radio-button>
       </el-radio-group>
@@ -33,22 +51,53 @@
     <div v-if="step==1"
          class="button">
       <div class="info blue">颜色选择</div>
-      <el-color-picker v-model="color"></el-color-picker>
+      <el-color-picker v-model="color"
+                       :predefine="predefineColors"
+                       @change="changeColor"></el-color-picker>
     </div>
     <div v-if="step<=1"
          class="button">
-      <el-button class="action">撤销</el-button>
+      <el-button v-if="stack>1"
+                 class="action"
+                 @click="onRevoke">撤销</el-button>
+      <el-button v-else
+                 disabled
+                 class="action"
+                 @click="onRevoke">撤销</el-button>
     </div>
     <div v-if="step<=1"
          class="button">
-      <el-button class="action">清空</el-button>
+      <el-button v-if="stack>1"
+                 class="action"
+                 @click="onClean">清空</el-button>
+      <el-button v-else
+                 disabled
+                 class="action"
+                 @click="onClean">清空</el-button>
     </div>
     <div v-if="step<=1"
          class="button">
-      <el-button class="operation">生成</el-button>
+      <el-button class="operation"
+                 @click="onGenerate">生成</el-button>
+    </div>
+    <div class="button"
+         v-if="step == 0">
+      <el-button v-if="stack>1"
+                 class="operation"
+                 @click="onSaveSketch">保存草图</el-button>
+      <el-button v-else
+                 disabled
+                 class="operation"
+                 @click="onSaveSketch">保存草图</el-button>
     </div>
     <div class="button">
-      <el-button class="operation">保存</el-button>
+      <el-button v-if=" (step == 0 &&sketchNumber>0) ||(step == 1 &&faceNumber>0) || step ==2"
+                 class="operation"
+                 @click="onSave">保存</el-button>
+      <el-button v-else
+                 disabled
+                 class="operation"
+                 @click="onSave">保存</el-button>
     </div>
     <div v-if="step<=1"
          class="button"
@@ -62,18 +111,100 @@ export default {
   name: 'Toolsbar',
   data() {
     return {
-      mode: '画笔',
+      fileList: [],
+      mode: '素描',
       gender: '男性',
       size: 1,
       color: '#5cb6ff',
+      predefineColors: [
+        '#ff4500',
+        '#ff8c00',
+        '#ffd700',
+        '#90ee90',
+        '#00ced1',
+        '#1e90ff',
+        '#c71585',
+      ],
     }
   },
   props: {
     step: Number,
+    stack: Number,
+    sketchNumber: Number,
+    faceNumber: Number,
   },
   methods: {
+    handleBeforeUpload(file) {
+      console.log('before')
+      if (
+        !(
+          file.type === 'image/png' ||
+          file.type === 'image/gif' ||
+          file.type === 'image/jpg' ||
+          file.type === 'image/jpeg'
+        )
+      ) {
+        this.$notify.warning({
+          title: '警告',
+          message:
+            '请上传格式为image/png, image/gif, image/jpg, image/jpeg的图片',
+        })
+      }
+      let size = file.size / 1024 / 1024 / 2
+      if (size > 2) {
+        this.$notify.warning({
+          title: '警告',
+          message: '图片大小必须小于2M',
+        })
+      }
+    },
+    // 点击文件列表中已上传的文件时的钩子
+    uploadFile() {
+      this.$refs.upload.submit()
+    },
+    addImage(file) {
+      this.$emit('upload', file)
+    },
     next() {
+      console.log('?')
+      //   this.step++
       this.$emit('next', this.step)
+      this.$emit('color', this.color)
+      //   if (this.step == 1) {
+      //     this.$emit('color', this.color)
+      //     this.mode = '素描'
+      //     this.changeMode()
+      //   }
+    },
+    changeSize() {
+      this.$emit('size', this.size)
+    },
+    changeGender() {
+      this.$emit('gender', this.gender)
+    },
+    changeMode() {
+      this.$emit('color', this.color)
+      this.$emit('mode', this.mode)
+    },
+    changeColor() {
+      this.mode = '画笔'
+      this.changeMode()
+      this.$emit('color', this.color)
+    },
+    onGenerate() {
+      this.$emit('generate')
+    },
+    onSave() {
+      this.$emit('save')
+    },
+    onSaveSketch() {
+      this.$emit('save-sketch')
+    },
+    onRevoke() {
+      this.$emit('revoke')
+    },
+    onClean() {
+      this.$emit('clean')
     },
   },
 }
@@ -82,13 +213,22 @@ export default {
 #toolsbar {
   display: inline-block;
   width: 98%;
-  height: 600px;
+  height: 620px;
   background-color: #fff;
   border: 2px solid #ededed;
   box-shadow: -2px 2px 1px 1px #ededed;
 }
 .button {
+  display: block;
+  width: 100%;
   margin: 25px auto;
+}
+.upload {
+  width: 80px;
+  height: 30px;
+  color: #fff;
+  background-color: #a1c4fd;
+  padding: 0;
 }
 .operation {
   width: 40%;
