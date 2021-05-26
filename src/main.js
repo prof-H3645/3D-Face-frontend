@@ -3,7 +3,7 @@ import App from './App.vue'
 import Element from 'element-ui';
 import Axios from 'axios'
 import router from './router'
-import './theme/index.css'
+import './assets/theme/index.css'
 import ModelObj from 'vue-3d-model'
 // import qs from 'qs'
 
