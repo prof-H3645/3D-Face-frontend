@@ -1,5 +1,5 @@
 <template>
-  <input type="file">
+  <el-button>test</el-button>
 </template>
 <script>
 // import objUrl from 'obj-mtl-loader!@/assets/result.obj'

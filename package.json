@@ -11,6 +11,8 @@
     "axios": "^0.21.1",
     "core-js": "^3.6.5",
     "element-ui": "^2.15.1",
+    "file-saver": "^2.0.5",
+    "jszip": "^3.6.0",
     "obj-mtl-loader": "0.0.5",
     "three-obj-mtl-loader": "^1.0.3",
     "vue": "^2.6.11",
