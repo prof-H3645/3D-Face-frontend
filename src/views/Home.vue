@@ -39,19 +39,6 @@
                   style="border: 1px solid #000;"
                   id="output"></canvas>
         </div>
-
-        <!-- <div v-if="step==0&&tempUrl==''"
-             class="output"></div>
-        <img v-if="step==0&&tempUrl!=''"
-             class="output"
-             :src="tempUrl"
-             alt="">
-        <div v-if="step==1&&faceUrl==''"
-             class="output"></div>
-        <img v-if="step==1&&faceUrl!=''"
-             class="output"
-             :src="faceUrl"
-             alt=""> -->
         <model-obj v-loading="loading"
                    v-if="step==2"
                    backgroundColor="#abc"
@@ -65,16 +52,16 @@
       </el-main>
     </el-container>
     <canvas id="mask"
-            width="512px"
-            height="512px"
+            :width="canvasSide"
+            :height="canvasSide"
             style="position:absolute;top:100%;left:0;display:none;"></canvas>
     <canvas id="sketch"
-            width="512px"
-            height="512px"
+            :width="canvasSide"
+            :height="canvasSide"
             style="position:absolute;top:100%;left:50%;display:none;"></canvas>
     <canvas id="color"
-            width="512px"
-            height="512px"
+            :width="canvasSide"
+            :height="canvasSide"
             style="position:absolute;top:100%;left:100%;display:none;"></canvas>
   </el-container>
 
@@ -93,7 +80,7 @@ export default {
   },
   data() {
     return {
-      step: 1,
+      step: 0,
       gender: '男性',
       penWeight: 0.1,
       penColor: '#000',
@@ -114,7 +101,7 @@ export default {
       //   baseUrl1: 'http://mist@gpu08.mistgpu.xyz:18004/',
       tempUrl: '', //素描生成人脸的临时文件
       faceUrl: '', //精修之后的人脸文件
-      tempDataUrl: '', //准备发送的精修人脸文件
+      faceDataUrl: '', //准备发送的精修人脸文件
       originDataUrl: '',
       maskDataUrl: '',
       sketchDataUrl: '',
@@ -152,45 +139,50 @@ export default {
   mounted() {
     var canvas = document.getElementById('myCanvas')
     var output = document.getElementById('output')
+    var side = this.canvasSide
+
     this.canvasContext = canvas.getContext('2d')
     this.outputContext = output.getContext('2d')
     this.canvasOffsetLeft = canvas.offsetLeft
     this.canvasOffsetTop = canvas.offsetTop
     this.canvasContext.fillStyle = '#ffffff'
-    this.canvasContext.fillRect(0, 0, 512, 512)
+    this.canvasContext.fillRect(0, 0, side, side)
     this.outputContext.fillStyle = '#ffffff'
-    this.outputContext.fillRect(0, 0, 512, 512)
+    this.outputContext.fillRect(0, 0, side, side)
     var mask = document.getElementById('mask')
     this.maskContext = mask.getContext('2d')
-    this.maskContext.fillRect(0, 0, 512, 512)
+    this.maskContext.fillRect(0, 0, side, side)
     this.maskContext.save()
     var sketch = document.getElementById('sketch')
     this.sketchContext = sketch.getContext('2d')
-    this.sketchContext.fillRect(0, 0, 512, 512)
+    this.sketchContext.fillRect(0, 0, side, side)
     this.sketchContext.save()
     var color = document.getElementById('color')
     this.colorContext = color.getContext('2d')
-    this.colorContext.fillRect(0, 0, 512, 512)
+    this.colorContext.fillRect(0, 0, side, side)
     this.colorContext.save()
-    this.canvasStack[0] = this.canvasContext.getImageData(0, 0, 512, 512)
-    this.maskStack[0] = this.maskContext.getImageData(0, 0, 512, 512)
-    this.sketchStack[0] = this.sketchContext.getImageData(0, 0, 512, 512)
-    this.colorStack[0] = this.colorContext.getImageData(0, 0, 512, 512)
+    this.canvasStack[0] = this.canvasContext.getImageData(0, 0, side, side)
+    this.maskStack[0] = this.maskContext.getImageData(0, 0, side, side)
+    this.sketchStack[0] = this.sketchContext.getImageData(0, 0, side, side)
+    this.colorStack[0] = this.colorContext.getImageData(0, 0, side, side)
     var that = this
     canvas.ontouchstart = function (e) {
       console.log('touch start')
-      var simEvent = that.touchEventToMouseEvent(e, 'mousedown')
-      that.touchStart(simEvent)
+      //   var simEvent = that.touchEventToMouseEvent(e, 'mousedown')
+      that.touchStart(e)
+      e.preventDefault()
     }
     canvas.ontouchmove = function (e) {
       console.log('touch move')
-      var simEvent = that.touchEventToMouseEvent(e, 'mousemove')
-      that.touchMove(simEvent)
+      //   var simEvent = that.touchEventToMouseEvent(e, 'mousemove')
+      that.touchMove(e)
+      e.preventDefault()
     }
-    canvas.ontouchstart = function (e) {
+    canvas.ontouchend = function (e) {
       console.log('touch end')
-      var simEvent = that.touchEventToMouseEvent(e, 'mouseup')
-      that.touchEnd(simEvent)
+      //   var simEvent = that.touchEventToMouseEvent(e, 'mouseup')
+      that.touchEnd(e)
+      e.preventDefault()
     }
   },
   methods: {
@@ -209,8 +201,9 @@ export default {
         this.step = 1
         this.mode = '素描'
         var ctx = this.canvasContext
+        var side = this.canvasSide
         var output = this.outputContext
-        var imgData = output.getImageData(0, 0, 512, 512)
+        var imgData = output.getImageData(0, 0, side, side)
         ctx.putImageData(imgData, 0, 0)
         var canvas = document.getElementById('myCanvas')
         this.originDataUrl = canvas.toDataURL().slice(22)
@@ -242,7 +235,7 @@ export default {
           new_canvas.height = image.height
           var context = new_canvas.getContext('2d')
           context.drawImage(image, 0, 0, image.width, image.height)
-          self.tempDataUrl = new_canvas.toDataURL().slice(22)
+          self.faceDataUrl = new_canvas.toDataURL().slice(22)
           new_canvas = null
           self
             .$axios({
@@ -251,7 +244,7 @@ export default {
               data: {
                 data: {
                   name: 'new_model_' + new Date(),
-                  original: self.tempDataUrl,
+                  original: self.faceDataUrl,
                 },
               },
               header: {
@@ -301,10 +294,8 @@ export default {
       ctx.lineWidth = this.penWeight
       ctx.lineCap = 'round'
       ctx.lineJoin = 'round'
-
-      this.start_X =
-        e.clientX - this.canvasOffsetLeft + document.body.scrollLeft
-      this.start_Y = e.clientY - this.canvasOffsetTop + document.body.scrollTop
+      this.start_X = e.pageX - this.canvasOffsetLeft
+      this.start_Y = e.pageY - this.canvasOffsetTop
       ctx.beginPath() //开始本次绘画
       canvas.onmousemove = this.touchMove
       canvas.onmouseup = this.touchEnd
@@ -333,8 +324,8 @@ export default {
     touchMove(e) {
       var ctx = this.canvasContext
       /*找到鼠标（画笔）的坐标*/
-      var move_X = e.clientX - this.canvasOffsetLeft + document.body.scrollLeft
-      var move_Y = e.clientY - this.canvasOffsetTop + document.body.scrollTop
+      var move_X = e.pageX - this.canvasOffsetLeft
+      var move_Y = e.pageY - this.canvasOffsetTop
       ctx.moveTo(this.start_X, this.start_Y)
       ctx.lineTo(move_X, move_Y) //根据鼠标路径绘画
       ctx.stroke() //立即渲染
@@ -358,14 +349,15 @@ export default {
     },
     touchEnd(e) {
       var canvas = document.getElementById('myCanvas')
+      var side = this.canvasSide
       var ctx = this.canvasContext
       console.log(e)
       ctx.closePath() //结束本次绘画
       this.canvasStack[this.canvasStack.length] = ctx.getImageData(
         0,
         0,
-        512,
-        512
+        side,
+        side
       )
       if (this.step == 1) {
         if (this.mode == '蒙版') {
@@ -373,19 +365,19 @@ export default {
           this.maskStack[this.maskStack.length] = this.maskContext.getImageData(
             0,
             0,
-            512,
-            512
+            side,
+            side
           )
         } else if (this.mode == '素描') {
           this.sketchContext.closePath()
           this.sketchStack[
             this.sketchStack.length
-          ] = this.sketchContext.getImageData(0, 0, 512, 512)
+          ] = this.sketchContext.getImageData(0, 0, side, side)
         } else {
           this.colorContext.closePath()
           this.colorStack[
             this.colorStack.length
-          ] = this.colorContext.getImageData(0, 0, 512, 512)
+          ] = this.colorContext.getImageData(0, 0, side, side)
         }
       }
       canvas.onmousemove = null
@@ -428,13 +420,13 @@ export default {
         new_canvas.height = img.height
         var context = new_canvas.getContext('2d')
         context.drawImage(img, 0, 0, img.width, img.height)
-        var tempDataUrl = new_canvas.toDataURL('image/png')
+        var faceDataUrl = new_canvas.toDataURL('image/png')
         if (this.step == 0) {
           dlLink.download = 'sketch_output' + this.sketchNumber + '.png'
         } else if (this.step == 1) {
           dlLink.download = 'face_output' + this.faceNumber + '.png'
         }
-        dlLink.href = tempDataUrl
+        dlLink.href = faceDataUrl
         document.body.appendChild(dlLink)
         dlLink.click()
         document.body.removeChild(dlLink)
@@ -446,7 +438,6 @@ export default {
       var imgURL = canvas.toDataURL('image/png')
       var dlLink = document.createElement('a')
       dlLink.download = 'sketch' + (this.stackSize - 1) + '.png'
-      console.log(imgURL)
       dlLink.href = imgURL
       // dlLink.dataset.downloadurl = [dlLink.download, dlLink.href].join(':')
       document.body.appendChild(dlLink)
@@ -483,10 +474,11 @@ export default {
                 console.log(this.sketchNumber)
                 var ctx = this.outputContext
                 var img = new Image()
+                var side = this.canvasSide
                 img.setAttribute('crossOrigin', 'anonymous')
                 img.src = res.data.result
                 img.onload = function () {
-                  ctx.drawImage(img, 0, 0, 512, 512)
+                  ctx.drawImage(img, 0, 0, side, side)
                 }
               }
             },
@@ -499,7 +491,6 @@ export default {
           })
       } else if (this.step == 1) {
         console.log('step=1 generate')
-        console.log(this.originDataUrl)
         this.maskDataUrl = mask.toDataURL().slice(22)
         this.sketchDataUrl = sketch.toDataURL().slice(22)
         this.colorDataUrl = color.toDataURL().slice(22)
@@ -526,11 +517,12 @@ export default {
                 this.faceUrl = res.data.result
                 this.faceNumber++
                 var ctx = this.outputContext
+                var side = this.canvasSide
                 var img = new Image()
                 img.setAttribute('crossOrigin', 'anonymous')
                 img.src = res.data.result
                 img.onload = function () {
-                  ctx.drawImage(img, 0, 0, 512, 512)
+                  ctx.drawImage(img, 0, 0, side, side)
                 }
               }
             },
@@ -580,6 +572,7 @@ export default {
       var that = this
       var reader = new FileReader()
       var ctx = this.canvasContext
+      var side = this.canvasSide
       if (file) {
         //通过文件流将文件转换成Base64字符串
         reader.readAsDataURL(file.raw)
@@ -588,10 +581,8 @@ export default {
           var img = new Image()
           img.src = reader.result
           img.onload = function () {
-            ctx.drawImage(img, 0, 0, 512, 512)
-            var canvas = document.getElementById('myCanvas')
-            that.originDataUrl = canvas.toDataURL().slice(22)
-            that.canvasStack[0] = ctx.getImageData(0, 0, 512, 512)
+            ctx.drawImage(img, 0, 0, side, side)
+            that.canvasStack[0] = ctx.getImageData(0, 0, side, side)
             that.canvasStack.length = 1
             that.stackSize = 1
           }
