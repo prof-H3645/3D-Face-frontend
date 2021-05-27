@@ -20,16 +20,27 @@
                   :step="step"
                   :stack="stackSize"
                   :sketchNumber="sketchNumber"
-                  :faveNumber="faceNumber"></ToolsBar>
+                  :faceNumber="faceNumber"></ToolsBar>
       </el-aside>
       <el-main style="padding:10px;">
-        <canvas v-if="step<=1"
-                id="myCanvas"
-                width="512px"
-                height="512px"
-                style="border: 1px solid #000;"
-                @mousedown="touchStart"></canvas>
-        <div v-if="step==0&&tempUrl==''"
+        <div class="canvas"
+             v-if="step<=1">
+          <canvas id="myCanvas"
+                  :width="canvasSide"
+                  :height="canvasSide"
+                  style="border: 1px solid #000;"
+                  @mousedown="touchStart"></canvas>
+        </div>
+
+        <div v-if="step<=1"
+             class="output">
+          <canvas :width="canvasSide"
+                  :height="canvasSide"
+                  style="border: 1px solid #000;"
+                  id="output"></canvas>
+        </div>
+
+        <!-- <div v-if="step==0&&tempUrl==''"
              class="output"></div>
         <img v-if="step==0&&tempUrl!=''"
              class="output"
@@ -40,7 +51,7 @@
         <img v-if="step==1&&faceUrl!=''"
              class="output"
              :src="faceUrl"
-             alt="">
+             alt=""> -->
         <model-obj v-loading="loading"
                    v-if="step==2"
                    backgroundColor="#abc"
@@ -82,7 +93,7 @@ export default {
   },
   data() {
     return {
-      step: 0,
+      step: 1,
       gender: '男性',
       penWeight: 0.1,
       penColor: '#000',
@@ -92,20 +103,22 @@ export default {
       colorContext: {},
       canvasOffsetLeft: 0,
       canvasOffsetTop: 0,
+      canvasSide: 400,
       start_X: 0,
       start_Y: 0,
-      modelWidth: 375,
-      modelHeight: 375,
+      modelWidth: 600,
+      modelHeight: 600,
       sketchNumber: 0,
       faceNumber: 0,
-      baseUrl: 'http://gpu35.mistgpu.xyz:48004/',
+      baseUrl: 'http://mist@gpu08.mistgpu.xyz:18004/',
+      //   baseUrl1: 'http://mist@gpu08.mistgpu.xyz:18004/',
       tempUrl: '', //素描生成人脸的临时文件
-      tempUrl1: '', //素描生成人脸的临时文件
       faceUrl: '', //精修之后的人脸文件
-      originUrl: '',
-      maskUrl: '',
-      sketchUrl: '',
-      colorUrl: '',
+      tempDataUrl: '', //准备发送的精修人脸文件
+      originDataUrl: '',
+      maskDataUrl: '',
+      sketchDataUrl: '',
+      colorDataUrl: '',
       objUrl: '',
       mtlUrl: '',
       loading: true,
@@ -131,13 +144,22 @@ export default {
       stackSize: 1,
     }
   },
+  created() {
+    console.log(window.innerWidth)
+    console.log(window.innerHeight)
+    this.canvasSide = Math.ceil(window.innerWidth * 0.35 - 26)
+  },
   mounted() {
     var canvas = document.getElementById('myCanvas')
+    var output = document.getElementById('output')
     this.canvasContext = canvas.getContext('2d')
+    this.outputContext = output.getContext('2d')
     this.canvasOffsetLeft = canvas.offsetLeft
     this.canvasOffsetTop = canvas.offsetTop
     this.canvasContext.fillStyle = '#ffffff'
     this.canvasContext.fillRect(0, 0, 512, 512)
+    this.outputContext.fillStyle = '#ffffff'
+    this.outputContext.fillRect(0, 0, 512, 512)
     var mask = document.getElementById('mask')
     this.maskContext = mask.getContext('2d')
     this.maskContext.fillRect(0, 0, 512, 512)
@@ -154,6 +176,22 @@ export default {
     this.maskStack[0] = this.maskContext.getImageData(0, 0, 512, 512)
     this.sketchStack[0] = this.sketchContext.getImageData(0, 0, 512, 512)
     this.colorStack[0] = this.colorContext.getImageData(0, 0, 512, 512)
+    var that = this
+    canvas.ontouchstart = function (e) {
+      console.log('touch start')
+      var simEvent = that.touchEventToMouseEvent(e, 'mousedown')
+      that.touchStart(simEvent)
+    }
+    canvas.ontouchmove = function (e) {
+      console.log('touch move')
+      var simEvent = that.touchEventToMouseEvent(e, 'mousemove')
+      that.touchMove(simEvent)
+    }
+    canvas.ontouchstart = function (e) {
+      console.log('touch end')
+      var simEvent = that.touchEventToMouseEvent(e, 'mouseup')
+      that.touchEnd(simEvent)
+    }
   },
   methods: {
     next() {
@@ -171,18 +209,14 @@ export default {
         this.step = 1
         this.mode = '素描'
         var ctx = this.canvasContext
-        var img = new Image()
-        img.setAttribute('crossOrigin', 'anonymous')
-        img.src = this.tempUrl
-        var that = this
-        img.onload = function () {
-          ctx.drawImage(img, 0, 0, 512, 512)
-          var canvas = document.getElementById('myCanvas')
-          that.originUrl = canvas.toDataURL().slice(22)
-          that.stackSize = 1
-          that.canvasStack.length = 1
-          that.canvasStack[0] = ctx.getImageData(0, 0, 512, 512)
-        }
+        var output = this.outputContext
+        var imgData = output.getImageData(0, 0, 512, 512)
+        ctx.putImageData(imgData, 0, 0)
+        var canvas = document.getElementById('myCanvas')
+        this.originDataUrl = canvas.toDataURL().slice(22)
+        this.stackSize = 1
+        this.canvasStack.length = 1
+        this.canvasStack[0] = imgData
       } else if (this.step == 1 && this.faceNumber == 0) {
         this.$alert('你还没精修人脸照片呢', '提醒', {
           confirmButtonText: '确定',
@@ -208,7 +242,7 @@ export default {
           new_canvas.height = image.height
           var context = new_canvas.getContext('2d')
           context.drawImage(image, 0, 0, image.width, image.height)
-          self.tempUrl1 = new_canvas.toDataURL().slice(22)
+          self.tempDataUrl = new_canvas.toDataURL().slice(22)
           new_canvas = null
           self
             .$axios({
@@ -217,7 +251,7 @@ export default {
               data: {
                 data: {
                   name: 'new_model_' + new Date(),
-                  original: self.tempUrl1,
+                  original: self.tempDataUrl,
                 },
               },
               header: {
@@ -377,28 +411,35 @@ export default {
       console.log('save')
       var img = new Image()
       img.setAttribute('crossOrigin', 'anonymous')
-      if (this.step == 0) {
-        img.src = this.tempUrl
-      } else if (this.step == 1) {
-        img.src = this.faceUrl
-      }
-      var new_canvas = document.createElement('canvas')
-      new_canvas.width = img.width
-      new_canvas.height = img.height
-      var context = new_canvas.getContext('2d')
-      context.drawImage(img, 0, 0, img.width, img.height)
-      var tempUrl1 = new_canvas.toDataURL('image/png')
       var dlLink = document.createElement('a')
-      if (this.step == 0) {
-        dlLink.download = 'sketch_output' + this.sketchNumber + '.png'
-      } else if (this.step == 1) {
-        dlLink.download = 'face_output' + this.faceNumber + '.png'
+      if (this.step == 2) {
+        dlLink.href = this.objUrl
+        document.body.appendChild(dlLink)
+        dlLink.click()
+        document.body.removeChild(dlLink)
+      } else {
+        if (this.step == 0) {
+          img.src = this.tempUrl
+        } else if (this.step == 1) {
+          img.src = this.faceUrl
+        }
+        var new_canvas = document.createElement('canvas')
+        new_canvas.width = img.width
+        new_canvas.height = img.height
+        var context = new_canvas.getContext('2d')
+        context.drawImage(img, 0, 0, img.width, img.height)
+        var tempDataUrl = new_canvas.toDataURL('image/png')
+        if (this.step == 0) {
+          dlLink.download = 'sketch_output' + this.sketchNumber + '.png'
+        } else if (this.step == 1) {
+          dlLink.download = 'face_output' + this.faceNumber + '.png'
+        }
+        dlLink.href = tempDataUrl
+        document.body.appendChild(dlLink)
+        dlLink.click()
+        document.body.removeChild(dlLink)
+        new_canvas = null
       }
-      dlLink.href = tempUrl1
-      document.body.appendChild(dlLink)
-      dlLink.click()
-      document.body.removeChild(dlLink)
-      new_canvas = null
     },
     onSaveSketch() {
       var canvas = document.getElementById('myCanvas')
@@ -424,7 +465,7 @@ export default {
           url: this.baseUrl + 'sketch2image',
           data: {
             data: {
-              name: 'new_sketch_' + this.sketchNumber + new Date(),
+              name: 'new_sketch_' + this.sketchNumber + new Date().getTime(),
               gender: this.gender == '男性' ? 0 : 1,
               sketch: dataUrl,
             },
@@ -440,6 +481,13 @@ export default {
                 this.tempUrl = res.data.result
                 this.sketchNumber++
                 console.log(this.sketchNumber)
+                var ctx = this.outputContext
+                var img = new Image()
+                img.setAttribute('crossOrigin', 'anonymous')
+                img.src = res.data.result
+                img.onload = function () {
+                  ctx.drawImage(img, 0, 0, 512, 512)
+                }
               }
             },
             (err) => {
@@ -451,19 +499,20 @@ export default {
           })
       } else if (this.step == 1) {
         console.log('step=1 generate')
-        this.maskUrl = mask.toDataURL().slice(22)
-        this.sketchUrl = sketch.toDataURL().slice(22)
-        this.colorUrl = color.toDataURL().slice(22)
+        console.log(this.originDataUrl)
+        this.maskDataUrl = mask.toDataURL().slice(22)
+        this.sketchDataUrl = sketch.toDataURL().slice(22)
+        this.colorDataUrl = color.toDataURL().slice(22)
         this.$axios({
           method: 'post',
           url: this.baseUrl + 'face_editing',
           data: {
             data: {
               name: 'new_face_' + this.faceNumber + new Date(),
-              original: this.originUrl,
-              mask: this.maskUrl,
-              sketch: this.sketchUrl,
-              stroke: this.colorUrl,
+              original: this.originDataUrl,
+              mask: this.maskDataUrl,
+              sketch: this.sketchDataUrl,
+              stroke: this.colorDataUrl,
             },
           },
           header: {
@@ -476,6 +525,13 @@ export default {
               if (res.data.success == true) {
                 this.faceUrl = res.data.result
                 this.faceNumber++
+                var ctx = this.outputContext
+                var img = new Image()
+                img.setAttribute('crossOrigin', 'anonymous')
+                img.src = res.data.result
+                img.onload = function () {
+                  ctx.drawImage(img, 0, 0, 512, 512)
+                }
               }
             },
             (err) => {
@@ -532,14 +588,37 @@ export default {
           var img = new Image()
           img.src = reader.result
           img.onload = function () {
-            console.log('产生')
             ctx.drawImage(img, 0, 0, 512, 512)
+            var canvas = document.getElementById('myCanvas')
+            that.originDataUrl = canvas.toDataURL().slice(22)
             that.canvasStack[0] = ctx.getImageData(0, 0, 512, 512)
             that.canvasStack.length = 1
             that.stackSize = 1
           }
         }
       }
+    },
+    touchEventToMouseEvent(event, eventType) {
+      if (
+        !event.originalEvent ||
+        !event.originalEvent.targetTouches ||
+        event.originalEvent.targetTouches.length != 1
+      )
+        return false
+      var te = event.originalEvent.targetTouches[0]
+      var clientX = te.clientX,
+        clientY = te.clientY,
+        screenX = te.screenX,
+        screenY = te.screenY
+      var simEvent = new MouseEvent(eventType, {
+        clientX: clientX,
+        clientY: clientY,
+        screenX: screenX,
+        screenY: screenY,
+        button: 0,
+        buttons: 0,
+      })
+      return simEvent
     },
   },
 }
@@ -548,12 +627,14 @@ export default {
 .el-scrollbar__wrap {
   overflow-x: hidden;
 }
+.canvas {
+  float: left;
+  margin-left: 5%;
+  margin-top: 50px;
+}
 .output {
-  display: inline-block;
-  width: 512px;
-  height: 512px;
-  border: 1px solid #000;
-  margin-left: 100px;
+  float: right;
+  margin-right: 5%;
   margin-top: 50px;
 }
 </style>

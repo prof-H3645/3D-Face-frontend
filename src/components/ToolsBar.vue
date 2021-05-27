@@ -1,6 +1,6 @@
 <template>
   <div id="toolsbar">
-    <el-upload v-if="step==0"
+    <el-upload v-if="step<1"
                class="button"
                ref="upload"
                action="#"
@@ -84,19 +84,28 @@
          v-if="step == 0">
       <el-button v-if="stack>1"
                  class="operation"
+                 style="width:50%"
                  @click="onSaveSketch">保存草图</el-button>
       <el-button v-else
                  disabled
                  class="operation"
+                 style="width:50%"
                  @click="onSaveSketch">保存草图</el-button>
     </div>
-    <div class="button">
-      <el-button v-if=" (step == 0 &&sketchNumber>0) ||(step == 1 &&faceNumber>0) || step ==2"
+    <div v-if="step <= 1"
+         class="button">
+      <el-button v-if="(step == 0 &&sketchNumber>0) ||(step == 1 &&faceNumber>0)"
                  class="operation"
                  @click="onSave">保存</el-button>
       <el-button v-else
                  disabled
                  class="operation"
+                 @click="onSave">保存</el-button>
+    </div>
+    <div v-else
+         class="button"
+         style="margin-top: 300px;">
+      <el-button class="operation"
                  @click="onSave">保存</el-button>
     </div>
     <div v-if="step<=1"

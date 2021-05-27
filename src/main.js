@@ -6,6 +6,9 @@ import router from './router'
 import './assets/theme/index.css'
 import ModelObj from 'vue-3d-model'
 // import qs from 'qs'
+import Vconsole from 'vconsole';
+const vConsole = new Vconsole();
+export default vConsole;
 
 
 
